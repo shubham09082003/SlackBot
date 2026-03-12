@@ -1,0 +1,21 @@
+{
+  "name": "slack-analytics-bot",
+  "version": "1.0.0",
+  "description": "Slack bot — natural language → SQL → Azure SQL Database",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+    "@slack/bolt": "^4.6.0",
+    "axios": "^1.13.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "mssql": "^12.2.0",
+    "oledb": "^1.6.0",
+    "openai": "^6.27.0",
+    "winston": "^3.19.0",
+    "xmldom": "^0.6.0"
+  }
+}
