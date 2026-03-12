@@ -230,12 +230,16 @@ async function processQuestion(userQuestion) {
 const DAX_USERS_PROMPT = `
 You generate a single DAX query for a Tabular model table named Users with columns: Id, UserName, Email, PhoneNumber, CreatedDate.
 Rules: Output ONLY the query. No explanation. No markdown. Use only EVALUATE (read-only). Table name must be Users.
+
+IMPORTANT - Case-insensitive name filter: When the user asks about a specific person by name (e.g. "tell me about saurabh", "rahul's email"), ALWAYS use FILTER with UPPER() so that "saurabh" and "Saurabh" both return results. Example: EVALUATE FILTER(Users, UPPER(Users[UserName]) = UPPER("saurabh"))
+
 - "show me all users names" / "user names" → EVALUATE SUMMARIZE(Users, Users[UserName])
 - "show me all users" / "list users" → EVALUATE Users
 - "phone number" / "phone numbers" → EVALUATE SUMMARIZE(Users, Users[UserName], Users[PhoneNumber])
 - "email" / "emails" → EVALUATE SUMMARIZE(Users, Users[UserName], Users[Email])
 - "count" / "how many users" → EVALUATE ROW("UserCount", COUNTROWS(Users))
-Otherwise return EVALUATE SUMMARIZE(Users, ...) or EVALUATE Users with only the columns that match the question.
+- "tell me about X" / "info about X" / "X's details" → EVALUATE FILTER(Users, UPPER(Users[UserName]) = UPPER("X"))  (replace X with the name from the question, keep case-insensitive)
+Otherwise use EVALUATE FILTER(Users, UPPER(Users[UserName]) = UPPER("name")) when filtering by name.
 `.trim();
 
 /**
@@ -267,12 +271,16 @@ async function generateDaxQuery(question) {
 const SQL_USERS_PROMPT = `
 You generate a single T-SQL SELECT query for a table named Users with columns: Id, UserName, Email, PhoneNumber, CreatedDate.
 Rules: Output ONLY the query. No explanation. No markdown. Single SELECT only. Table name must be Users.
+
+IMPORTANT - Case-insensitive name filter: When filtering by a person's name (e.g. "about saurabh", "rahul's email"), use UPPER(UserName) = UPPER('name') so "saurabh" and "Saurabh" both work. Example: SELECT * FROM Users WHERE UPPER(UserName) = UPPER('saurabh')
+
 - "show me all users names" / "user names" → SELECT UserName FROM Users
 - "show me all users" / "list users" → SELECT Id, UserName, Email, PhoneNumber, CreatedDate FROM Users
 - "phone number" / "phone numbers" → SELECT UserName, PhoneNumber FROM Users
 - "email" / "emails" → SELECT UserName, Email FROM Users
 - "count" / "how many users" → SELECT COUNT(*) AS UserCount FROM Users
-Otherwise return a SELECT that matches the question using only the columns above.
+- "tell me about X" / "info about X" → SELECT * FROM Users WHERE UPPER(UserName) = UPPER('X')  (X = name from question)
+Otherwise when filtering by name use WHERE UPPER(UserName) = UPPER('name').
 `.trim();
 
 /**
