@@ -1,7 +1,6 @@
 // src/handlers/messageHandler.js
-const { processQuestion, generateSqlForUsers, generateDaxQuery } = require("../services/gptService");
+const { processQuestion, generateDaxQuery } = require("../services/gptService");
 const { executeMdxQuery } = require("../services/aasService");
-const { executeSqlQuery } = require("../services/sqlService");
 const { formatResultsForSlack,
     formatErrorForSlack } = require("../services/formatterService");
 const logger = require("../utils/logger");
@@ -105,9 +104,8 @@ async function handleMessage({ text, userId, channel, say, client }) {
         return;
     }
 
-    // ── Step 5: If MDX returned no rows, try DAX then SQL fallback ─────────────
+    // ── Step 5: If MDX returned no rows, try DAX (same cube) ───────────────────
     if (queryResult.rows.length === 0) {
-        // Try DAX (same cube, different query language)
         try {
             const dax = await generateDaxQuery(text);
             if (dax) {
@@ -125,28 +123,6 @@ async function handleMessage({ text, userId, channel, say, client }) {
             }
         } catch (err) {
             logger.warn("Pipeline: DAX fallback failed", { error: err.message });
-        }
-
-        // Try Azure SQL
-        if (process.env.AZURE_DB_SERVER && process.env.AZURE_DB_NAME) {
-            try {
-                const sql = await generateSqlForUsers(text);
-                if (sql) {
-                    const sqlResult = await executeSqlQuery(sql);
-                    if (sqlResult.rows.length > 0) {
-                        logger.info("Pipeline: AAS empty, sent SQL fallback results", { rows: sqlResult.rows.length });
-                        const blocks = formatResultsForSlack(sqlResult, text, sql);
-                        const withNote = [
-                            ...blocks,
-                            { type: "context", elements: [{ type: "mrkdwn", text: "_Data from Azure SQL (cube not refreshed)._" }] },
-                        ];
-                        await reply(withNote, "Here are your results.");
-                        return;
-                    }
-                }
-            } catch (err) {
-                logger.warn("Pipeline: SQL fallback failed", { error: err.message });
-            }
         }
     }
 

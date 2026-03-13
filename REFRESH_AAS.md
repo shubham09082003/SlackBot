@@ -59,7 +59,7 @@ If Process fails with *“credential is missing a required property … Property
    - Either run: `node scripts/refresh-aas.js full`
    - Or in **SSMS**: connect to the server → right‑click the database → **Process** → **Full** → OK.
 
-After this, the cube should have the correct data source password and Process will work. The Slack bot can then get data from the cube (or will keep using the Azure SQL fallback if the cube is still empty until Process completes).
+After this, the cube should have the correct data source password and Process will work. The Slack bot reads data from the cube via MDX/DAX—refresh the model so queries return rows.
 
 ---
 

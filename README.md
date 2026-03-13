@@ -1,12 +1,11 @@
 # Slack Analytics Bot
 
-Slack Analytics Bot is a Node.js application that integrates Slack with your database services. It translates natural language user questions into SQL or MDX queries, executes them against your Azure SQL Database or Azure Analysis Services (AAS), and returns the formatted results directly in Slack.
+Slack Analytics Bot is a Node.js application that integrates Slack with Azure Analysis Services (AAS). It translates natural language into **MDX** (and **DAX** when MDX returns no rows), runs queries on AAS, and returns formatted results in Slack.
 
 ## Features
 
-- Natural language to SQL translation using OpenAI.
-- Executes queries against an Azure SQL Database.
-- Supports querying Azure Analysis Services (AAS) using MDX.
+- Natural language to MDX/DAX using OpenAI.
+- Queries Azure Analysis Services (AAS) via MDX, with DAX fallback when MDX returns no rows.
 - MDX validation middleware to ensure query correctness before execution.
 - Result formatting for easy reading in Slack.
 - Dedicated script and documentation for refreshing AAS models.
@@ -20,7 +19,7 @@ The application codebase is structured into directories to separate concerns:
 - `middleware/`: Contains middleware such as `mdxValidator.js`.
 - `services/`: Core logic and service integrations.
   - `aasService.js`: Handles connections and queries to Azure Analysis Services.
-  - `sqlService.js`: Handles connections to Azure SQL Database.
+  - `sqlService.js`: (Optional) Azure SQL helpers; not used in the main MDX/DAX message pipeline.
   - `gptService.js`: Interfaces with OpenAI to generate queries based on natural language.
   - `formatterService.js`: Formats the data results for Slack presentation.
 - `scripts/`: Operational scripts like `refresh-aas.js` for model refresh tasks.
@@ -31,7 +30,7 @@ The application codebase is structured into directories to separate concerns:
 - Node.js installed (v16 or higher recommended).
 - An active Slack Bot application with necessary OAuth scopes.
 - OpenAI API Key.
-- Azure SQL Database credentials.
+- (Optional) Azure SQL credentials if you use `sqlService` elsewhere.
 - Azure Analysis Services connection details and credentials.
 
 ## Setup
@@ -46,7 +45,7 @@ npm install
 3. Configure your environment variables. Create a `.env` file in the root directory (refer to `.env.example` if available) and add the appropriate secrets:
    - Slack Bot Token and Signing Secret
    - OpenAI App Key
-   - SQL Server Connection String
+   - (Optional) SQL Server connection string
    - AAS XMLA Endpoint and Credentials
 
 4. Start the application:
@@ -61,7 +60,7 @@ npm run dev
 
 ## Usage
 
-Once running and connected to your Slack workspace, simply mention the bot or send a direct message asking a data-related question. The bot will determine if it should query the SQL database or correct AAS models, generate the appropriate query, execute it, and return the formatted data.
+Once running, mention the bot or DM it with a data question. It generates MDX (or DAX if needed), runs it on AAS, and returns formatted results.
 
 ## Note on AAS Refreshes
 

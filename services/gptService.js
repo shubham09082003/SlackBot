@@ -267,47 +267,4 @@ async function generateDaxQuery(question) {
   return dax;
 }
 
-// ── SQL fallback (when cube has no data) ───────────────────────────────────────
-const SQL_USERS_PROMPT = `
-You generate a single T-SQL SELECT query for a table named Users with columns: Id, UserName, Email, PhoneNumber, CreatedDate.
-Rules: Output ONLY the query. No explanation. No markdown. Single SELECT only. Table name must be Users.
-
-IMPORTANT - Case-insensitive name filter: When filtering by a person's name (e.g. "about saurabh", "rahul's email"), use UPPER(UserName) = UPPER('name') so "saurabh" and "Saurabh" both work. Example: SELECT * FROM Users WHERE UPPER(UserName) = UPPER('saurabh')
-
-- "show me all users names" / "user names" → SELECT UserName FROM Users
-- "show me all users" / "list users" → SELECT Id, UserName, Email, PhoneNumber, CreatedDate FROM Users
-- "phone number" / "phone numbers" → SELECT UserName, PhoneNumber FROM Users
-- "email" / "emails" → SELECT UserName, Email FROM Users
-- "count" / "how many users" → SELECT COUNT(*) AS UserCount FROM Users
-- "tell me about X" / "info about X" → SELECT * FROM Users WHERE UPPER(UserName) = UPPER('X')  (X = name from question)
-Otherwise when filtering by name use WHERE UPPER(UserName) = UPPER('name').
-`.trim();
-
-/**
- * Generate a safe SELECT query for the Users table (for Azure SQL fallback when cube is empty).
- * @param {string} question
- * @returns {Promise<string|null>} SQL query or null if not applicable
- */
-async function generateSqlForUsers(question) {
-  const response = await client.chat.completions.create({
-    model: process.env.OPENAI_MODEL || "gpt-4o",
-    messages: [
-      { role: "system", content: SQL_USERS_PROMPT },
-      { role: "user", content: question },
-    ],
-    temperature: 0,
-    max_tokens: 120,
-  });
-  let sql = response.choices[0]?.message?.content?.trim() || "";
-  sql = sql.replace(/^```\w*\n?|\n?```$/g, "").trim();
-  if (!sql.toUpperCase().startsWith("SELECT ") || sql.includes(";")) {
-    sql = sql.split(";")[0].trim();
-  }
-  if (!sql.toUpperCase().startsWith("SELECT ")) return null;
-  if (!/FROM\s+Users\b/i.test(sql)) return null;
-  if (/\b(INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC)\b/i.test(sql)) return null;
-  logger.info("GPT: SQL for fallback", { preview: sql.slice(0, 80) });
-  return sql;
-}
-
-module.exports = { processQuestion, generateSqlForUsers, generateDaxQuery };
+module.exports = { processQuestion, generateDaxQuery };
