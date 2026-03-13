@@ -48,30 +48,40 @@ Examples:
 "what measures are available?" → SCHEMA_QUERY
 "show me all users" → MDX_QUERY
 "how many users registered?" → MDX_QUERY
-"what is rahul's email?" → MDX_QUERY
+"what is that user's email?" → MDX_QUERY
 "total users" → MDX_QUERY
 "last refresh time" → REFRESH_QUERY
 "when was data last updated?" → REFRESH_QUERY
 "hello" → GREETING
-"delete all information of saurabh" → RESTRICTED_ACTION
+"delete all information about someone" → RESTRICTED_ACTION
 "can you alter the table?" → RESTRICTED_ACTION
 "remove this user" → RESTRICTED_ACTION
 "update the email" → RESTRICTED_ACTION
 "join these tables" → RESTRICTED_ACTION
 `.trim();
 
+// ── Slack-friendly bullets (all TEXT replies should follow this) ───────────────
+const SLACK_REPLY_FORMAT = `
+How to format your reply in Slack (mrkdwn):
+- Start with one short title line in bold, e.g. *What’s in the model* or *Quick answer*
+- Then a blank line, then each point on its own line starting with the bullet character • (Unicode bullet U+2022), e.g. • First point
+- One main idea per bullet; keep bullets scannable (avoid long paragraphs)
+- Use backticks only for exact field names, e.g. \`[Users].[Email]\`
+- Do not use markdown # headers or **double-star** bold (Slack uses *single asterisks* for bold)
+`.trim();
+
 // ── Schema question handler ────────────────────────────────────────────────────
 const SCHEMA_PROMPT = `
-You are a helpful data assistant. Answer questions about the Azure Analysis Services cube schema accurately.
+You are a professional analytics assistant for executives and business users. Answer questions about the Azure Analysis Services data model clearly and concisely.
 
-Here is the EXACT cube schema you have access to:
+Here is the EXACT schema you may describe:
 ${CUBE_SCHEMA}
 
+${SLACK_REPLY_FORMAT}
+
 Rules:
-- Answer directly and confidently based on the schema above.
-- If a column/measure exists, say YES and name it clearly.
-- If it doesn't exist, say NO clearly.
-- Be concise — 2-3 sentences max.
+- Tone: polite, confident, business-appropriate (no slang).
+- Answer directly: name tables, fields, and measures as bullets under your title.
 - Do NOT say "I don't have access" — you DO have the schema above.
 `.trim();
 
@@ -118,23 +128,28 @@ SELECT {} ON COLUMNS, NON EMPTY [Dimension].[Level].[Level].Members ON ROWS FROM
 
 // ── Greeting prompt ────────────────────────────────────────────────────────────
 const GREETING_PROMPT = `
-You are a friendly Slack data bot connected to an Azure Analysis Services cube.
-The user sent a greeting. Reply warmly in 1-2 sentences and tell them what they can ask, like:
-- "Show me all users"
-- "How many users are there?"
-- "What is Rahul's email?"
-- "When was the latest signup?"
+You are a professional analytics assistant on Slack, connected to the organisation's Azure Analysis Services model.
+The user sent a greeting. Reply in a courteous, business-appropriate tone.
+
+${SLACK_REPLY_FORMAT}
+
+Structure:
+- Title line: e.g. *Hi — here’s what I can do*
+- Then bullets with • for: listing or filtering users, counts/registrations, contact details (where in the model), sign-up / activity dates
+- Last bullet: invite them to ask, e.g. • What would you like to look up?
 `.trim();
 
 // ── Restricted action (delete / alter / join / update etc.) ────────────────────
 const RESTRICTED_ACTION_PROMPT = `
-You are a read-only data bot. The user asked to do something that changes data or schema (e.g. delete, alter, update, insert, join to modify, drop, remove).
+The user's message asks to change, delete, wipe, or modify data or schema — or otherwise do something destructive or write-related (delete, remove, update, insert, alter, drop, truncate, merge, etc.). This bot cannot do that.
 
-Reply in 1-2 short sentences. Say clearly:
-1. You can only answer questions and show data from the cube — you cannot perform that action.
-2. Mention what they asked (e.g. "I cannot delete or alter data") and suggest they use the appropriate tool or team for that.
+${SLACK_REPLY_FORMAT}
 
-Be polite and direct. Do not offer to do the action.
+Reply with title *That request can’t be run here* then bullets (adapt slightly if their message was clearly about deleting personal data vs altering tables):
+• This assistant is read-only: it can only query and display analytics from the model. It never deletes, updates, inserts, or alters any data.
+• Requests that look destructive or like system changes are blocked on purpose so nothing in the cube is modified from chat.
+• To change real systems of record, user records, or the model itself, use your organisation’s approved admin tools, ticketing, or the team that owns that data — not this bot.
+Be calm and clear. Do not apologise for refusing unsafe actions. Do not offer workarounds that would still change data.
 `.trim();
 
 // ── Classify intent ────────────────────────────────────────────────────────────
@@ -165,7 +180,12 @@ async function generateNaturalReply(question, intent) {
       intent === "GREETING" ? GREETING_PROMPT :
         intent === "RESTRICTED_ACTION" ? RESTRICTED_ACTION_PROMPT :
           `You are a helpful Slack data bot. The user asked something unrelated to the cube.
-     Politely say in 1-2 sentences that you only handle data questions about the slackbotdb AAS cube.`;
+
+${SLACK_REPLY_FORMAT}
+
+Reply with title *Out of scope* then bullets:
+• You only help with questions about the organisation’s AAS analytics cube (users, lists, counts, schema).
+• Ask a data question when they’re ready.`;
 
   const response = await client.chat.completions.create({
     model: process.env.OPENAI_MODEL || "gpt-4o",
@@ -231,7 +251,7 @@ const DAX_USERS_PROMPT = `
 You generate a single DAX query for a Tabular model table named Users with columns: Id, UserName, Email, PhoneNumber, CreatedDate.
 Rules: Output ONLY the query. No explanation. No markdown. Use only EVALUATE (read-only). Table name must be Users.
 
-IMPORTANT - Case-insensitive name filter: When the user asks about a specific person by name (e.g. "tell me about saurabh", "rahul's email"), ALWAYS use FILTER with UPPER() so that "saurabh" and "Saurabh" both return results. Example: EVALUATE FILTER(Users, UPPER(Users[UserName]) = UPPER("saurabh"))
+IMPORTANT - Case-insensitive name filter: When the user asks about a specific person by name, ALWAYS use FILTER with UPPER() so casing does not matter. Example: EVALUATE FILTER(Users, UPPER(Users[UserName]) = UPPER("Jane Doe"))
 
 - "show me all users names" / "user names" → EVALUATE SUMMARIZE(Users, Users[UserName])
 - "show me all users" / "list users" → EVALUATE Users

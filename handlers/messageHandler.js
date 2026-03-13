@@ -1,8 +1,11 @@
 // src/handlers/messageHandler.js
 const { processQuestion, generateDaxQuery } = require("../services/gptService");
 const { executeMdxQuery } = require("../services/aasService");
-const { formatResultsForSlack,
-    formatErrorForSlack } = require("../services/formatterService");
+const {
+    formatResultsForSlack,
+    formatErrorForSlack,
+    formatTextReplyForSlack,
+} = require("../services/formatterService");
 const logger = require("../utils/logger");
 
 // Track last AAS query time for refresh reporting
@@ -17,10 +20,10 @@ async function handleMessage({ text, userId, channel, say, client }) {
     let thinkingTs;
     try {
         const msg = await say({
-            text: "⏳ Thinking...",
+            text: "Retrieving your data…",
             blocks: [{
                 type: "context",
-                elements: [{ type: "mrkdwn", text: "⏳ *Thinking...* Analysing your question." }],
+                elements: [{ type: "mrkdwn", text: "⏳ *One moment* — retrieving the latest from your analytics model." }],
             }],
         });
         thinkingTs = msg.ts;
@@ -67,7 +70,7 @@ async function handleMessage({ text, userId, channel, say, client }) {
                 type: "section",
                 text: {
                     type: "mrkdwn",
-                    text: `*Last AAS Query Time*\n\n*${refreshTime}*\n\n_Data is served live from Azure Analysis Services (AAS), which syncs from Azure SQL Database._`,
+                    text: `*Last AAS query time*\n\n• *When:* ${refreshTime}\n• *Source:* Live Azure Analysis Services (AAS), synced from Azure SQL Database`,
                 },
             }],
             `Last query: ${refreshTime}`
@@ -78,8 +81,9 @@ async function handleMessage({ text, userId, channel, say, client }) {
     // ── Step 3: Direct text reply (schema questions, greetings, etc.) ───────────
     if (result.type === "TEXT") {
         logger.info("Pipeline: Sending text reply");
+        const slackText = formatTextReplyForSlack(result.text);
         await reply(
-            [{ type: "section", text: { type: "mrkdwn", text: result.text } }],
+            [{ type: "section", text: { type: "mrkdwn", text: slackText } }],
             result.text
         );
         return;
@@ -112,12 +116,8 @@ async function handleMessage({ text, userId, channel, say, client }) {
                 const daxResult = await executeMdxQuery(dax);
                 if (daxResult.rows.length > 0) {
                     logger.info("Pipeline: MDX empty, sent DAX results", { rows: daxResult.rows.length });
-                    const blocks = formatResultsForSlack(daxResult, text, dax);
-                    const withNote = [
-                        ...blocks,
-                        { type: "context", elements: [{ type: "mrkdwn", text: "_Data from cube (DAX)._" }] },
-                    ];
-                    await reply(withNote, "Here are your results.");
+                    const blocks = formatResultsForSlack(daxResult, text, dax, { queryType: "DAX" });
+                    await reply(blocks, "Here is the information you asked for.");
                     return;
                 }
             }
@@ -126,8 +126,8 @@ async function handleMessage({ text, userId, channel, say, client }) {
         }
     }
 
-    const blocks = formatResultsForSlack(queryResult, text, result.mdx);
-    await reply(blocks, "Here are your results.");
+    const blocks = formatResultsForSlack(queryResult, text, result.mdx, { queryType: "MDX" });
+    await reply(blocks, "Here is the information you asked for.");
     logger.info("Pipeline: Response delivered", { userId, channel });
 }
 

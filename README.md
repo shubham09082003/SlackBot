@@ -7,7 +7,7 @@ Slack Analytics Bot is a Node.js application that integrates Slack with Azure An
 - Natural language to MDX/DAX using OpenAI.
 - Queries Azure Analysis Services (AAS) via MDX, with DAX fallback when MDX returns no rows.
 - MDX validation middleware to ensure query correctness before execution.
-- Result formatting for easy reading in Slack.
+- Result formatting for easy reading in Slack (native **table** block with bold headers when supported; boxed monospace fallback).
 - Dedicated script and documentation for refreshing AAS models.
 
 ## Architecture & Services
@@ -47,6 +47,7 @@ npm install
    - OpenAI App Key
    - (Optional) SQL Server connection string
    - AAS XMLA Endpoint and Credentials
+   - (Optional) `SLACK_TABLE_BLOCK=0` — disable the Block Kit table block and use only monospace tables (use if `chat.update` returns errors on older workspaces).
 
 4. Start the application:
 ```bash
