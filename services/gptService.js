@@ -8,7 +8,7 @@ const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 // ── Your AAS Cube schema ───────────────────────────────────────────────────────
 // Update this whenever your cube model changes.
 // Cube/database name in MDX FROM clause is replaced at runtime with the discovered cube name (e.g. Model).
-const CUBE_NAME = process.env.AAS_DATABASE || "MyCubeProject";
+const CUBE_NAME = process.env.AAS_DATABASE;
 const CUBE_SCHEMA = `
 AAS Cube: Azure Analysis Services Tabular model.
 Database (catalog) name in FROM clause: ${CUBE_NAME} (the runtime will replace WITH the actual cube name from the server).
@@ -87,7 +87,7 @@ Rules:
 
 // ── Build MDX prompt with discovered schema (real dimension/level names from cube) ─
 async function buildMdxPrompt() {
-  const CUBE_NAME = process.env.AAS_DATABASE || "MyCubeProject";
+  const CUBE_NAME = process.env.AAS_DATABASE ;
   let schemaBlock = CUBE_SCHEMA;
   try {
     const levels = await discoverSchema();
