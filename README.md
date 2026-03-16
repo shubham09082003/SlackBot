@@ -1,68 +1,66 @@
 # Slack Analytics Bot
 
-Slack Analytics Bot is a Node.js application that integrates Slack with Azure Analysis Services (AAS). It translates natural language into **MDX** (and **DAX** when MDX returns no rows), runs queries on AAS, and returns formatted results in Slack.
+Slack Analytics Bot is a Node.js application that integrates Slack with Azure Analysis Services (AAS). It translates natural language questions into MDX (and DAX as a fallback) to run queries on AAS, returning formatted data results directly within Slack.
 
 ## Features
 
-- Natural language to MDX/DAX using OpenAI.
-- Queries Azure Analysis Services (AAS) via MDX, with DAX fallback when MDX returns no rows.
-- MDX validation middleware to ensure query correctness before execution.
-- Result formatting for easy reading in Slack (native **table** block with bold headers when supported; boxed monospace fallback).
-- Dedicated script and documentation for refreshing AAS models.
+- **Natural Language Processing:** Converts conversational questions to MDX/DAX using OpenAI.
+- **Azure Analysis Services Integration:** Executes complex MDX queries against AAS.
+- **DAX Fallback:** Automatically generates and attempts a DAX query if the initial MDX query yields no rows.
+- **Intelligent Formatting:** Responses are gracefully formatted for Slack, utilizing native Block Kit tables when supported, or boxed monospace text for compatibility.
+- **Interactive Queries:** Supports Slack mentions, Direct Messages, and a dedicated /analytics slash command.
+- **Refresh Tracking:** Built-in capability to query the last known AAS refresh or sync time.
 
-## Architecture & Services
+## Architecture
 
-The application codebase is structured into directories to separate concerns:
+The project is structured to enforce separation of concerns:
 
-- `index.js`: Main application entry point that initializes the Slack Bolt app and Express server.
-- `handlers/`: Contains input handlers like `messageHandler.js` to process incoming Slack messages.
-- `middleware/`: Contains middleware such as `mdxValidator.js`.
-- `services/`: Core logic and service integrations.
-  - `aasService.js`: Handles connections and queries to Azure Analysis Services.
-  - `sqlService.js`: (Optional) Azure SQL helpers; not used in the main MDX/DAX message pipeline.
-  - `gptService.js`: Interfaces with OpenAI to generate queries based on natural language.
-  - `formatterService.js`: Formats the data results for Slack presentation.
-- `scripts/`: Operational scripts like `refresh-aas.js` for model refresh tasks.
-- `utils/` Shared utilities like `logger.js` (Winston-based logging).
+- `index.js`: Application entry point initializing the Slack Bolt framework and Express HTTP server.
+- `handlers/messageHandler.js`: Coordinates the pipeline from receiving a Slack message, checking intent, running translations, and sending the final data.
+- `middleware/mdxValidator.js`: Analyzes and validates MDX queries before execution.
+- `services/gptService.js`: Integrates with OpenAI to determine user intent and generate MDX/DAX.
+- `services/aasService.js`: Manages the XMLA endpoint connection and runs queries against Azure Analysis Services.
+- `services/formatterService.js`: Parses tabular data into Slack-compatible UI blocks and handles error formatting.
+- `scripts/`: Contains utility scripts, such as periodic AAS model refresh operations.
 
 ## Prerequisites
 
-- Node.js installed (v16 or higher recommended).
-- An active Slack Bot application with necessary OAuth scopes.
+- Node.js (v16 or higher recommended).
+- A registered Slack App with the appropriate Bot Token, App Token (if using Socket Mode), and Slash Command configurations.
 - OpenAI API Key.
-- (Optional) Azure SQL credentials if you use `sqlService` elsewhere.
-- Azure Analysis Services connection details and credentials.
+- Azure Analysis Services connection details (XMLA endpoint, database model name, cube name, tenant ID, and credentials).
 
-## Setup
+## Setup and Installation
 
-1. Clone this repository.
+1. Clone the repository to your local machine.
 
-2. Install dependencies:
-```bash
-npm install
-```
+2. Install the necessary Node.js dependencies:
+   ```bash
+   npm install
+   ```
 
-3. Configure your environment variables. Create a `.env` file in the root directory (refer to `.env.example` if available) and add the appropriate secrets:
-   - Slack Bot Token and Signing Secret
-   - OpenAI App Key
-   - (Optional) SQL Server connection string
-   - AAS XMLA Endpoint and Credentials
-   - (Optional) `SLACK_TABLE_BLOCK=0` — disable the Block Kit table block and use only monospace tables (use if `chat.update` returns errors on older workspaces).
+3. Configure your environment variables. Copy the `.env.example` file to `.env` and populate it with your specific secrets:
+   - Slack Tokens (`SLACK_BOT_TOKEN`, `SLACK_APP_TOKEN`, `SLACK_SIGNING_SECRET`)
+   - OpenAI Keys (`OPENAI_API_KEY`, `OPENAI_MODEL`)
+   - AAS Configurations (`AAS_XMLA_ENDPOINT`, `AAS_DATABASE`, `AAS_CUBE_NAME`, `AAS_TENANT_ID`, `AAS_USERNAME`, `AAS_PASSWORD`, `AAS_SERVER`)
 
 4. Start the application:
-```bash
-npm start
-```
-
-For development with automatic restarts upon save, use:
-```bash
-npm run dev
-```
+   ```bash
+   npm start
+   ```
+   For development with live reloading:
+   ```bash
+   npm run dev
+   ```
 
 ## Usage
 
-Once running, mention the bot or DM it with a data question. It generates MDX (or DAX if needed), runs it on AAS, and returns formatted results.
+Once the bot is running and installed in your Slack workspace, you can interact with it in several ways:
 
-## Note on AAS Refreshes
+- **Direct Messages:** Send a DM directly to the bot with your data question.
+- **Mentions:** Mention the bot in any channel it has been invited to.
+- **Slash Commands:** Use the built-in command `/analytics` followed by your query.
 
-Please see the `REFRESH_AAS.md` file in the project root for details on how to manually trigger or schedule an Azure Analysis Services model refresh using the `scripts/refresh-aas.js` script.
+## Model Refreshes
+
+The repository includes a mechanism for triggering AAS model refreshes. Please consult the `REFRESH_AAS.md` document in the root directory for instructions on configuring and scheduling these operations via the `scripts/refresh-aas.js` script.
