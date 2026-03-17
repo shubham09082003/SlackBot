@@ -287,4 +287,47 @@ async function generateDaxQuery(question) {
   return dax;
 }
 
-module.exports = { processQuestion, generateDaxQuery };
+// ── Databricks SQL (for /databricks command) ───────────────────────────────────
+const DATABRICKS_SQL_SCHEMA = `
+Table: users_table (or the table name your Databricks warehouse uses for user data).
+Columns (adjust names to match your table): id, user_name, email, phone_number, created_date.
+Use standard SQL only. Output ONLY a single SELECT statement. No explanation, no markdown.
+Rules: Only SELECT. No INSERT/UPDATE/DELETE/DROP/CREATE/ALTER.
+- "total users" / "how many users" → SELECT COUNT(*) AS total_users FROM users_table
+- "list users" / "show all users" → SELECT id, user_name, email FROM users_table (or appropriate columns)
+- "user names" → SELECT user_name FROM users_table
+`.trim();
+
+const DATABRICKS_SQL_PROMPT = `
+You are a SQL generator for Databricks. Generate exactly one SELECT statement.
+
+Schema:
+${DATABRICKS_SQL_SCHEMA}
+
+Output ONLY the raw SQL. No backticks, no explanation.
+`.trim();
+
+/**
+ * Generate a safe SELECT query for Databricks from natural language.
+ * @param {string} question
+ * @returns {Promise<string|null>} SQL or null
+ */
+async function generateSqlForDatabricks(question) {
+  const response = await client.chat.completions.create({
+    model: process.env.OPENAI_MODEL || "gpt-4o",
+    messages: [
+      { role: "system", content: DATABRICKS_SQL_PROMPT },
+      { role: "user", content: question },
+    ],
+    temperature: 0,
+    max_tokens: 256,
+  });
+  let sql = response.choices[0]?.message?.content?.trim() || "";
+  sql = sql.replace(/^```\w*\n?|\n?```$/g, "").trim();
+  if (!/^\s*SELECT\b/i.test(sql) && !/^\s*WITH\b/i.test(sql)) return null;
+  if (/\b(INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE|MERGE)\b/i.test(sql)) return null;
+  logger.info("GPT: SQL for Databricks", { preview: sql.slice(0, 80) });
+  return sql;
+}
+
+module.exports = { processQuestion, generateDaxQuery, generateSqlForDatabricks };
