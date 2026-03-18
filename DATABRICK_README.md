@@ -74,7 +74,7 @@ Slack (DM / @mention)
 5. **Genie and Databricks SQL** — Genie interprets the question, generates SQL, and runs it against Databricks SQL in your workspace. The conversation message moves through states such as submitted, in progress, running, then succeeded or failed.
 6. **Poll until done** — The app polls `GET .../conversations/{id}/messages/{id}` until the message is no longer in a pending state (with an optional cold-start delay before polling).
 7. **Result payload** — On success, the app reads narrative text from message attachments and, when present, calls the query-result endpoint for tabular data. That data is normalized to columns and rows for Slack tables.
-8. **Slack reply** — `formatterService` builds Block Kit sections (text plus table when applicable). The bot appends a *Data last refreshed* footer (Jobs API, IST; cached ~1 min). It **updates** the earlier message or sends a new one, completing the workflow.
+8. **Slack reply** — `formatterService` builds Block Kit sections (text plus table when applicable). The bot **updates** the earlier message or sends a new one. Refresh time is **not** shown on data answers—only when the user asks (see step 3).
 
 ## Environment variables (this path only)
 
@@ -87,7 +87,7 @@ Slack (DM / @mention)
 | `DATABRICKS_URL` | Yes | Workspace URL, no trailing slash issues handled in code (e.g. `https://adb-xxxx.azuredatabricks.net`). |
 | `GENIE_SPACE_ID` | Yes | Genie space ID for `start-conversation` and follow-up API calls. |
 | `DATABRICKS_TOKEN` | One required | Personal access token or API token with access to Genie and SQL in that workspace. |
-| `DATABRICKS_REFRESH_JOB_ID` | For freshness UX | Numeric job ID for the hourly refresh job (e.g. `Refresh_Users_Data`). Used by Jobs API for “last refresh” answers and reply footers. Token must allow `jobs/runs/list` on that job. |
+| `DATABRICKS_REFRESH_JOB_ID` | For freshness UX | Numeric job ID for the hourly refresh job (e.g. `Refresh_Users_Data`). Used when users ask about last refresh / data freshness. Token must allow `jobs/runs/list` on that job. |
 
 If `DATABRICKS_TOKEN` is not set, the app accepts **one** of these instead (same meaning as above): `TOKEN`, `ACCESS_TOKEN`, `DATABRICKS_ACCESS_TOKEN`, `DATABRICKS_PAT`.
 
@@ -101,7 +101,7 @@ If `DATABRICKS_TOKEN` is not set, the app accepts **one** of these instead (same
 | Area | Location |
 |------|----------|
 | Genie API calls and parsing | `services/genieService.js` |
-| Last job run / refresh footer | `services/databricksRefreshService.js` |
+| Last job run (refresh Q&A only) | `services/databricksRefreshService.js` |
 | Slack handling and reply formatting | `handlers/messageHandler.js`, `services/formatterService.js` |
 | Startup checks for the variables above | `index.js` |
 

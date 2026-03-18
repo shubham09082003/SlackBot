@@ -9,7 +9,6 @@ const {
     isDataRefreshMetadataQuery,
     isNextRefreshQuery,
     getLastRefreshForDisplay,
-    getFooterRefreshLine,
     NEXT_REFRESH_MRKDWN,
 } = require("../services/databricksRefreshService");
 const logger = require("../utils/logger");
@@ -123,21 +122,11 @@ async function handleMessage({ text, userId, channel, say, client }) {
         });
     }
 
-    const footer = await getFooterRefreshLine();
-    const footerBlocks = [
-        { type: "divider" },
-        {
-            type: "context",
-            elements: [{ type: "mrkdwn", text: footer.line }],
-        },
-    ];
-
     const fallback = result.text || "Here is the result from Genie.";
-    const allBlocks = [
-        ...(blocks.length > 0 ? blocks : [{ type: "section", text: { type: "mrkdwn", text: fallback } }]),
-        ...footerBlocks,
-    ];
-    await reply(allBlocks, `${fallback}\n\n${footer.line}`);
+    await reply(
+        blocks.length > 0 ? blocks : [{ type: "section", text: { type: "mrkdwn", text: fallback } }],
+        fallback
+    );
     logger.info("[Pipeline] 4. Response delivered", { userId, channel });
 }
 

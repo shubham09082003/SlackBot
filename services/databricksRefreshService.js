@@ -17,9 +17,6 @@ const JOB_ID = process.env.DATABRICKS_REFRESH_JOB_ID;
 const IST_LOCALE = "en-IN";
 const IST_ZONE = "Asia/Kolkata";
 
-let footerCache = { at: 0, payload: null };
-const FOOTER_CACHE_MS = 60_000;
-
 function formatEndTimeIST(endTimeMs) {
     if (!endTimeMs || endTimeMs <= 0) return null;
     return (
@@ -145,26 +142,6 @@ function isNextRefreshQuery(text) {
     return false;
 }
 
-/**
- * Cached IST time string for footers on data replies.
- */
-async function getFooterRefreshLine() {
-    const now = Date.now();
-    if (footerCache.payload && now - footerCache.at < FOOTER_CACHE_MS) {
-        return footerCache.payload;
-    }
-    const r = await fetchLastJobRunFromApiNormalized();
-    if (!r) {
-        return { line: "Unable to fetch last refresh time. Please try again later.", ok: false };
-    }
-    const timeStr = formatEndTimeIST(r.endTimeMs);
-    const line = timeStr
-        ? `Data last refreshed: ${timeStr}`
-        : "Unable to fetch last refresh time. Please try again later.";
-    footerCache = { at: now, payload: { line, ok: !!timeStr } };
-    return footerCache.payload;
-}
-
 function isDataRefreshMetadataQuery(text) {
     const t = (text || "").toLowerCase().trim();
     if (t.length < 4) return false;
@@ -196,7 +173,6 @@ function isDataRefreshMetadataQuery(text) {
 
 module.exports = {
     getLastRefreshForDisplay,
-    getFooterRefreshLine,
     isDataRefreshMetadataQuery,
     isNextRefreshQuery,
     NEXT_REFRESH_MRKDWN,
