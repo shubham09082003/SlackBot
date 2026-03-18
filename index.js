@@ -89,6 +89,6 @@ app.error(async (error) => {
         logger.info(`⚡ Slack Analytics Bot started on HTTP port ${port}`);
     }
 
-    logger.info("🤖 Bot ready — Genie → Databricks SQL (single pipeline)");
-    logger.info("DM / @mention / /analytics / /databricks → Genie API → Databricks SQL → response");
+    logger.info("🤖 Bot ready — answers come from your Databricks data (via Genie)");
+    logger.info("Mention @bot or send a DM to query your data in Databricks");
 })();

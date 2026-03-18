@@ -22,10 +22,10 @@ async function handleMessage({ text, userId, channel, say, client }) {
     let thinkingTs;
     try {
         const msg = await say({
-            text: "Retrieving from Databricks…",
+            text: "Retrieving data from Databricks…",
             blocks: [{
                 type: "context",
-                elements: [{ type: "mrkdwn", text: "⏳ DM / @mention / /analytics / /databricks → Genie API → retrieving from Databricks SQL → response" }],
+                elements: [{ type: "mrkdwn", text: "⏳ Retrieving data from Databricks…" }],
             }],
         });
         thinkingTs = msg.ts;

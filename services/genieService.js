@@ -17,12 +17,7 @@ const TOKEN =
 const SPACE_ID = process.env.GENIE_SPACE_ID;
 
 const POLL_INTERVAL_MS = 2000;
-const POLL_MAX_ATTEMPTS = 90; // ~3 min of polling after initial delay
-// Genie often needs ~10–30s cold start; override with GENIE_COLD_START_DELAY_MS in .env (seconds)
-const GENIE_COLD_START_DELAY_MS =
-  process.env.GENIE_COLD_START_DELAY_MS != null
-    ? Math.max(0, parseInt(process.env.GENIE_COLD_START_DELAY_MS, 10) * 1000)
-    : 15000;
+const POLL_MAX_ATTEMPTS = 90; // ~3 min of polling
 
 /**
  * Ask Genie a natural language question. Genie runs it against Databricks SQL and returns
@@ -63,22 +58,15 @@ async function askGenie(question) {
     throw new Error("Genie did not return conversation_id or message_id.");
   }
   const initialStatus = response.data.message?.status || response.data.status || "IN_PROGRESS";
-  const maxWaitSec = Math.round((GENIE_COLD_START_DELAY_MS + POLL_INTERVAL_MS * POLL_MAX_ATTEMPTS) / 1000);
+  const maxWaitSec = Math.round((POLL_INTERVAL_MS * POLL_MAX_ATTEMPTS) / 1000);
   logger.info("[Genie] 2. Conversation started, polling for result", {
     conversationId,
     messageId,
     initialStatus,
-    coldStartDelayMs: GENIE_COLD_START_DELAY_MS,
     pollIntervalMs: POLL_INTERVAL_MS,
     maxAttempts: POLL_MAX_ATTEMPTS,
     maxWaitSec,
   });
-
-  // Wait for Genie cold start (~10–30s) before first poll to avoid premature timeout
-  if (GENIE_COLD_START_DELAY_MS > 0) {
-    logger.info("[Genie] 2. Waiting for Genie cold start", { delayMs: GENIE_COLD_START_DELAY_MS });
-    await new Promise((r) => setTimeout(r, GENIE_COLD_START_DELAY_MS));
-  }
 
   // 3. Poll until message is SUCCEEDED (or COMPLETED) or FAILED
   // Flow: SUBMITTED → ASKING_AI → PENDING_WAREHOUSE → RUNNING → SUCCEEDED
@@ -188,9 +176,9 @@ async function askGenie(question) {
   if (!text && !data && !message.content) {
     text = message.content || "No text or table in response.";
   }
-  if (!text && data) {
-    text = "Here are the results from Databricks SQL.";
-  }
+  // if (!text && data) {
+  //   text = "Here are the results from Databricks SQL.";
+  // }
 
   logger.info("[Genie] 4. Done", { hasText: !!text, hasData: !!data });
   return { text, data };
