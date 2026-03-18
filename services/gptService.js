@@ -288,21 +288,11 @@ async function generateDaxQuery(question) {
 }
 
 // ── Databricks SQL (legacy / optional) ───────────────────────────────────────
-const DATABRICKS_SQL_SCHEMA = `
-Table: users_table (or the table name your Databricks warehouse uses for user data).
-Columns (adjust names to match your table): id, user_name, email, phone_number, created_date.
-Use standard SQL only. Output ONLY a single SELECT statement. No explanation, no markdown.
-Rules: Only SELECT. No INSERT/UPDATE/DELETE/DROP/CREATE/ALTER.
-- "total users" / "how many users" → SELECT COUNT(*) AS total_users FROM users_table
-- "list users" / "show all users" → SELECT id, user_name, email FROM users_table (or appropriate columns)
-- "user names" → SELECT user_name FROM users_table
-`.trim();
-
 const DATABRICKS_SQL_PROMPT = `
 You are a SQL generator for Databricks. Generate exactly one SELECT statement.
 
-Schema:
-${DATABRICKS_SQL_SCHEMA}
+Use only table and column names the user gives (e.g. catalog.schema.table). Do not invent names.
+Rules: One SELECT or WITH…SELECT only. No INSERT/UPDATE/DELETE/DROP/CREATE/ALTER/TRUNCATE/MERGE/JOIN.
 
 Output ONLY the raw SQL. No backticks, no explanation.
 `.trim();
