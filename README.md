@@ -2,13 +2,34 @@
 
 Slack Analytics Bot is a Node.js application that integrates Slack with Azure Analysis Services (AAS). It translates natural language questions into MDX (and DAX as a fallback) to run queries on AAS, returning formatted data results directly within Slack.
 
+On branch **feat/databricks-genie**, the same Slack app instead routes questions through **Databricks Genie** (natural language → SQL on Databricks SQL). See **Branches** below and `DATABRICK_README.md` for that path (includes app workflow).
+
+## Branches: what each branch does
+
+| Branch | Primary data path | What it can do |
+|--------|-------------------|----------------|
+| **`main`** | **OpenAI (GPT)** → **MDX / DAX** → **Azure Analysis Services** | Answer analytics questions against your AAS tabular/cube model; DAX fallback if MDX returns no rows; optional AAS refresh tracking via scripts (`REFRESH_AAS.md`). |
+| **`feat/databricks-genie`** | **Databricks Genie API** → **SQL** → **Databricks SQL** | Answer questions against data Genie is configured for in your Databricks workspace; Genie generates and runs SQL; “refresh” / “last query” style messages use in-app session state; formatted tables in Slack. |
+
+**Summary**
+
+- **`main`** — Best when your source of truth is **Azure Analysis Services**. You need OpenAI, AAS/XMLA credentials, and the stack described in **Features** through **Model Refreshes** below.
+- **`feat/databricks-genie`** — Best when your source of truth is **Databricks** and you use **Genie spaces**. You need Databricks workspace URL, Genie space ID, and a Databricks token; full setup, workflow, and env are in **`DATABRICK_README.md`**. The AAS/GPT pipeline exists in the repo but is commented out on this branch (see `handlers/messageHandler.js`).
+
+---
+
+**Documentation map**
+
+- Everything from **Features** through **Model Refreshes** below applies to the **`main`** branch (AAS + GPT).
+- For **`feat/databricks-genie`**, use **`DATABRICK_README.md`** (Genie + Databricks env, app workflow, and detailed flow).
+
 ## Features
 
 - **Natural Language Processing:** Converts conversational questions to MDX/DAX using OpenAI.
 - **Azure Analysis Services Integration:** Executes complex MDX queries against AAS.
 - **DAX Fallback:** Automatically generates and attempts a DAX query if the initial MDX query yields no rows.
 - **Intelligent Formatting:** Responses are gracefully formatted for Slack, utilizing native Block Kit tables when supported, or boxed monospace text for compatibility.
-- **Interactive Queries:** Supports Slack mentions, Direct Messages, and a dedicated /analytics slash command.
+- **Interactive Queries:** Supports Slack mentions and Direct Messages only.
 - **Refresh Tracking:** Built-in capability to query the last known AAS refresh or sync time.
 
 ## Architecture
@@ -26,7 +47,7 @@ The project is structured to enforce separation of concerns:
 ## Prerequisites
 
 - Node.js (v16 or higher recommended).
-- A registered Slack App with the appropriate Bot Token, App Token (if using Socket Mode), and Slash Command configurations.
+- A registered Slack App with the appropriate Bot Token and App Token (if using Socket Mode).
 - OpenAI API Key.
 - Azure Analysis Services connection details (XMLA endpoint, database model name, cube name, tenant ID, and credentials).
 
@@ -59,7 +80,6 @@ Once the bot is running and installed in your Slack workspace, you can interact 
 
 - **Direct Messages:** Send a DM directly to the bot with your data question.
 - **Mentions:** Mention the bot in any channel it has been invited to.
-- **Slash Commands:** Use the built-in command `/analytics` followed by your query.
 
 ## Model Refreshes
 

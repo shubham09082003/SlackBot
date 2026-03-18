@@ -39,7 +39,7 @@ async function getAzureAdToken() {
     resource: "https://*.asazure.windows.net",
   });
 
-  logger.info("AAS: Requesting Azure AD token");
+  logger.info("[AAS] 0. Requesting Azure AD token");
 
   const response = await axios.post(tokenUrl, params.toString(), {
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -56,7 +56,7 @@ async function getAzureAdToken() {
     expiresAt: now + parseInt(expires_in, 10) * 1000,
   };
 
-  logger.info("AAS: Azure AD token obtained", { expiresIn: `${expires_in}s` });
+  logger.info("[AAS] 0. Azure AD token obtained", { expiresIn: `${expires_in}s` });
   return access_token;
 }
 
@@ -426,7 +426,7 @@ function validateMdx(mdx) {
  */
 async function resolveClusterFqdn(regionHost, serverName) {
   const resolveUrl = `https://${regionHost}/webapi/clusterResolve`;
-  logger.info("AAS: Resolving cluster", { resolveUrl, serverName });
+  logger.info("[AAS] 1. Resolving cluster (clusterResolve)", { resolveUrl, serverName });
 
   let response;
   try {
@@ -440,6 +440,7 @@ async function resolveClusterFqdn(regionHost, serverName) {
       }
     );
   } catch (err) {
+    logger.error("[AAS] 1. clusterResolve request failed", { error: err.message });
     throw new Error(
       `AAS clusterResolve failed: ${err.message}. Check AAS server name and region.`
     );
@@ -450,6 +451,7 @@ async function resolveClusterFqdn(regionHost, serverName) {
       typeof response.data === "object"
         ? JSON.stringify(response.data)
         : String(response.data || "").slice(0, 200);
+    logger.error("[AAS] 1. clusterResolve returned non-200", { status: response.status, body });
     throw new Error(
       `AAS clusterResolve returned ${response.status}. ${body}`
     );
@@ -457,13 +459,14 @@ async function resolveClusterFqdn(regionHost, serverName) {
 
   const clusterFQDN = response.data?.clusterFQDN;
   if (!clusterFQDN) {
+    logger.error("[AAS] 1. clusterResolve missing clusterFQDN", { data: response.data });
     throw new Error(
       "AAS clusterResolve did not return clusterFQDN. Response: " +
         JSON.stringify(response.data || response.status)
     );
   }
 
-  logger.info("AAS: Cluster resolved", { clusterFQDN });
+  logger.info("[AAS] 2. Cluster resolved", { clusterFQDN });
   return clusterFQDN;
 }
 
@@ -510,7 +513,7 @@ async function executeMdxQuery(mdx) {
 
   if (isDax) {
     normalizedMdx = mdx.trim();
-    logger.info("AAS: Executing DAX query (no FROM/COLUMNS normalization)", { database, daxPreview: normalizedMdx.slice(0, 120) });
+    logger.info("[AAS] 3. Executing DAX query", { database, daxPreview: normalizedMdx.slice(0, 120) });
   } else {
     // ── Discover cube name; use in FROM clause (MDX only) ─────────────────────
     const cubeName = await discoverCubeName(xmlaUrl, serverName, token, database);
@@ -522,15 +525,15 @@ async function executeMdxQuery(mdx) {
     if (/\{\s*\}\s*ON\s*COLUMNS/i.test(normalizedMdx)) {
       normalizedMdx = normalizedMdx.replace(/\{\s*\}\s*ON\s*COLUMNS/gi, "{ [Measures].[_Val] } ON COLUMNS");
       normalizedMdx = "WITH MEMBER [Measures].[_Val] AS 1 " + normalizedMdx;
-      logger.info("AAS: Normalized empty COLUMNS to use calculated member", { mdxPreview: normalizedMdx.slice(0, 140) });
+      logger.info("[AAS] 3. Normalized empty COLUMNS", { mdxPreview: normalizedMdx.slice(0, 140) });
     }
-    logger.info("AAS: Executing MDX query", { database, cubeName, mdxPreview: normalizedMdx.slice(0, 120) });
+    logger.info("[AAS] 3. Executing MDX query", { database, cubeName, mdxPreview: normalizedMdx.slice(0, 120) });
   }
 
   // ── Build SOAP envelope and send Execute ──────────────────────────────────
   const envelope = buildXmlaEnvelope(normalizedMdx, database);
 
-  logger.info("AAS: Sending XMLA request", { url: xmlaUrl, serverName });
+  logger.info("[AAS] 4. Sending XMLA request", { url: xmlaUrl, serverName });
 
   let response;
   try {
@@ -567,14 +570,14 @@ async function executeMdxQuery(mdx) {
     const faultMatch = /<faultstring>([^<]+)<\/faultstring>/i.exec(rawXml);
     const descMatch = /<ErrorCode>([^<]+)<\/ErrorCode>/i.exec(rawXml);
     const fault = faultMatch ? faultMatch[1] : (descMatch ? descMatch[1] : "Unknown XMLA fault");
-    logger.error("AAS: SOAP fault received", { fault, rawXmlSnippet: rawXml.slice(0, 500) });
+    logger.error("[AAS] 4. SOAP fault received", { fault, rawXmlSnippet: rawXml.slice(0, 500) });
     throw new Error(`AAS query failed: ${fault}`);
   }
 
   // ── Parse and return ──────────────────────────────────────────────────────
   const { columns, rows } = parseXmlaResponse(rawXml);
 
-  logger.info("AAS: Query completed", { columnCount: columns.length, rowCount: rows.length });
+  logger.info("[AAS] 5. Query completed", { columnCount: columns.length, rowCount: rows.length });
 
   return { columns, rows, rawXml };
 }

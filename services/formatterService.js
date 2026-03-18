@@ -89,7 +89,7 @@ function metaFlagsFromQuestion(question) {
 
 function buildOptionalMetaSection(originalQuestion, meta) {
   const cubeName = meta.cubeName || process.env.AAS_DATABASE || "Analytics model";
-  const queryType = meta.queryType === "DAX" ? "DAX" : "MDX";
+  const queryType = meta.queryType === "DAX" ? "DAX" : meta.queryType === "SQL" ? "SQL" : "MDX";
   const q = slackSafeSnippet(originalQuestion || "");
   const flags = metaFlagsFromQuestion(originalQuestion);
 
@@ -216,13 +216,13 @@ function pushTableChunks(blocks, tableText, withResultLabel) {
  * @param {{ columns: string[], rows: Object[] }} data
  * @param {string} originalQuestion
  * @param {string} [_sqlQuery]
- * @param {{ queryType?: 'MDX' | 'DAX', cubeName?: string }} [meta]
+ * @param {{ queryType?: 'MDX' | 'DAX' | 'SQL', cubeName?: string }} [meta]
  */
 function formatResultsForSlack(data, originalQuestion, _sqlQuery, meta = {}) {
   const { columns, rows } = data;
   const blocks = [];
   const cubeName = meta.cubeName || process.env.AAS_DATABASE || "Analytics model";
-  const queryType = meta.queryType === "DAX" ? "DAX" : "MDX";
+  const queryType = meta.queryType === "DAX" ? "DAX" : meta.queryType === "SQL" ? "SQL" : "MDX";
   const flags = metaFlagsFromQuestion(originalQuestion);
 
   if (!rows || rows.length === 0) {

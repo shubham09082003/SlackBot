@@ -5,21 +5,24 @@ const { App, LogLevel } = require("@slack/bolt");
 const { handleMessage } = require("./handlers/messageHandler");
 const logger = require("./utils/logger");
 
-// ── Validate required environment variables ────────────────────────────────────
+// ── Validate required environment variables (Genie pipeline only) ───────────────
 const REQUIRED_ENV = [
     "SLACK_BOT_TOKEN",
     "SLACK_SIGNING_SECRET",
-    "OPENAI_API_KEY",
-    "AAS_XMLA_ENDPOINT",
-    "AAS_DATABASE",
-    "AAS_TENANT_ID",
-    "AAS_USERNAME",
-    "AAS_PASSWORD",
+    "DATABRICKS_URL",
+    "GENIE_SPACE_ID",
 ];
+// Databricks token: any of these env vars (same as genieService)
+const DATABRICKS_TOKEN_KEYS = ["DATABRICKS_TOKEN", "TOKEN", "ACCESS_TOKEN", "DATABRICKS_ACCESS_TOKEN", "DATABRICKS_PAT"];
+const hasDatabricksToken = DATABRICKS_TOKEN_KEYS.some((key) => process.env[key]);
 
 const missing = REQUIRED_ENV.filter((key) => !process.env[key]);
 if (missing.length > 0) {
     logger.error(`Missing required environment variables: ${missing.join(", ")}`);
+    process.exit(1);
+}
+if (!hasDatabricksToken) {
+    logger.error(`Missing Databricks token. Set one of: ${DATABRICKS_TOKEN_KEYS.join(", ")}`);
     process.exit(1);
 }
 
@@ -48,16 +51,6 @@ app.message(async ({ message, say, client }) => {
     await handleMessage({ text: message.text, userId: message.user, channel: message.channel, say, client });
 });
 
-// ── Slash command: /analytics ─────────────────────────────────────────────────
-app.command("/analytics", async ({ command, ack, say, client }) => {
-    await ack();
-    if (!command.text || command.text.trim().length === 0) {
-        await say("Please provide a question. Example: `/analytics show me all users`");
-        return;
-    }
-    await handleMessage({ text: command.text.trim(), userId: command.user_id, channel: command.channel_id, say, client });
-});
-
 // ── Global error handler ──────────────────────────────────────────────────────
 app.error(async (error) => {
     logger.error("Slack Bolt unhandled error", { error: error.message, stack: error.stack });
@@ -75,6 +68,6 @@ app.error(async (error) => {
         logger.info(`⚡ Slack Analytics Bot started on HTTP port ${port}`);
     }
 
-    logger.info("🤖 Bot ready — AAS (MDX) mode active");
-    logger.info("Mention @bot or send a DM to query your Azure Analysis Services cube.");
+    logger.info("🤖 Bot ready — answers come from your Databricks data (via Genie)");
+    logger.info("Mention @bot or send a DM to query your data in Databricks");
 })();
