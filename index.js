@@ -51,27 +51,6 @@ app.message(async ({ message, say, client }) => {
     await handleMessage({ text: message.text, userId: message.user, channel: message.channel, say, client });
 });
 
-// ── Slash command: /analytics ─────────────────────────────────────────────────
-app.command("/analytics", async ({ command, ack, say, client }) => {
-    await ack();
-    if (!command.text || command.text.trim().length === 0) {
-        await say("Please provide a question. Example: `/analytics show me all users`");
-        return;
-    }
-    await handleMessage({ text: command.text.trim(), userId: command.user_id, channel: command.channel_id, say, client });
-});
-
-// ── Slash command: /databricks — same pipeline as DM / @mention (Genie → Databricks SQL) ──
-app.command("/databricks", async ({ command, ack, say, client }) => {
-    await ack();
-    const text = command.text?.trim() || "";
-    if (!text) {
-        await say("Please provide a question. Example: `/databricks how many users do we have?`");
-        return;
-    }
-    await handleMessage({ text, userId: command.user_id, channel: command.channel_id, say, client });
-});
-
 // ── Global error handler ──────────────────────────────────────────────────────
 app.error(async (error) => {
     logger.error("Slack Bolt unhandled error", { error: error.message, stack: error.stack });

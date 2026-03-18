@@ -1,5 +1,5 @@
 // src/handlers/messageHandler.js
-// ACTIVE: Single pipeline — DM / @mention / /analytics → Genie API → Databricks SQL → Slack
+// ACTIVE: Single pipeline — DM / @mention → Genie API → Databricks SQL → Slack
 const { askGenie } = require("../services/genieService");
 const {
     formatResultsForSlack,

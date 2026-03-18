@@ -287,7 +287,7 @@ async function generateDaxQuery(question) {
   return dax;
 }
 
-// ── Databricks SQL (for /databricks command) ───────────────────────────────────
+// ── Databricks SQL (legacy / optional) ───────────────────────────────────────
 const DATABRICKS_SQL_SCHEMA = `
 Table: users_table (or the table name your Databricks warehouse uses for user data).
 Columns (adjust names to match your table): id, user_name, email, phone_number, created_date.
