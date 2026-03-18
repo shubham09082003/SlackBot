@@ -5,14 +5,19 @@ const {
     formatResultsForSlack,
     formatErrorForSlack,
 } = require("../services/formatterService");
+const {
+    isDataRefreshMetadataQuery,
+    isNextRefreshQuery,
+    getLastRefreshForDisplay,
+    getFooterRefreshLine,
+    NEXT_REFRESH_MRKDWN,
+} = require("../services/databricksRefreshService");
 const logger = require("../utils/logger");
 
 // ── COMMENTED OUT: AAS pipeline (GPT → AAS cube). Only Genie pipeline is used now. ──
 // const { processQuestion, generateDaxQuery } = require("../services/gptService");
 // const { executeMdxQuery } = require("../services/aasService");
 // const { formatTextReplyForSlack } = require("../services/formatterService");
-
-let _lastQueryTime = null;
 
 async function handleMessage({ text, userId, channel, say, client }) {
     if (!text || text.trim().length === 0) return;
@@ -43,28 +48,34 @@ async function handleMessage({ text, userId, channel, say, client }) {
         }
     };
 
-    // Optional: answer "refresh" / "last query" without calling Genie
-    if (isRefreshQuery(text)) {
-        const refreshTime = _lastQueryTime
-            ? new Date(_lastQueryTime).toLocaleString("en-IN", {
-                timeZone: "Asia/Kolkata",
-                day: "2-digit",
-                month: "short",
-                year: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-                hour12: true,
-            }) + " IST"
-            : "No queries run yet this session";
+    // Next refresh — no last-run stats, no Genie
+    if (isNextRefreshQuery(text)) {
         await reply(
-            [{
-                type: "section",
-                text: {
-                    type: "mrkdwn",
-                    text: `*Last query time*\n\n• *When:* ${refreshTime}\n• *Source:* Genie → Databricks SQL`,
-                },
-            }],
-            `Last query: ${refreshTime}`
+            [{ type: "section", text: { type: "mrkdwn", text: NEXT_REFRESH_MRKDWN } }],
+            "Next data refresh: hourly schedule in Databricks."
+        );
+        return;
+    }
+
+    // Databricks job "Refresh_Users_Data" — last run (Jobs API), no Genie
+    if (isDataRefreshMetadataQuery(text)) {
+        const info = await getLastRefreshForDisplay();
+        if (!info) {
+            await reply(
+                [{
+                    type: "section",
+                    text: {
+                        type: "mrkdwn",
+                        text: "⚠️ Unable to fetch last refresh time. Please try again later.",
+                    },
+                }],
+                "Unable to fetch last refresh time."
+            );
+            return;
+        }
+        await reply(
+            [{ type: "section", text: { type: "mrkdwn", text: info.mrkdwn } }],
+            "Last data refresh from Databricks."
         );
         return;
     }
@@ -89,8 +100,6 @@ async function handleMessage({ text, userId, channel, say, client }) {
         return;
     }
 
-    _lastQueryTime = Date.now();
-
     const blocks = [];
     if (result.text) {
         blocks.push({ type: "section", text: { type: "mrkdwn", text: result.text } });
@@ -114,27 +123,25 @@ async function handleMessage({ text, userId, channel, say, client }) {
         });
     }
 
+    const footer = await getFooterRefreshLine();
+    const footerBlocks = [
+        { type: "divider" },
+        {
+            type: "context",
+            elements: [{ type: "mrkdwn", text: footer.line }],
+        },
+    ];
+
     const fallback = result.text || "Here is the result from Genie.";
-    await reply(
-        blocks.length > 0 ? blocks : [{ type: "section", text: { type: "mrkdwn", text: fallback } }],
-        fallback
-    );
+    const allBlocks = [
+        ...(blocks.length > 0 ? blocks : [{ type: "section", text: { type: "mrkdwn", text: fallback } }]),
+        ...footerBlocks,
+    ];
+    await reply(allBlocks, `${fallback}\n\n${footer.line}`);
     logger.info("[Pipeline] 4. Response delivered", { userId, channel });
 }
 
 module.exports = { handleMessage };
-
-function isRefreshQuery(text) {
-    const lower = text.toLowerCase();
-    return (
-        lower.includes("refresh") ||
-        lower.includes("last update") ||
-        lower.includes("last sync") ||
-        lower.includes("data updated") ||
-        lower.includes("when was") ||
-        lower.includes("last query")
-    );
-}
 
 // ── COMMENTED OUT: AAS pipeline (GPT → AAS cube). Uncomment to restore. ─────────
 /*
