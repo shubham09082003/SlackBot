@@ -14,7 +14,7 @@ On branch **feat/databricks-genie**, the same Slack app instead routes questions
 **Summary**
 
 - **`main`** — Best when your source of truth is **Azure Analysis Services**. You need OpenAI, AAS/XMLA credentials, and the stack described in **Features** through **Model Refreshes** below.
-- **`feat/databricks-genie`** — Best when your source of truth is **Databricks** and you use **Genie spaces**. You need Databricks workspace URL, Genie space ID, and a Databricks token; full setup, workflow, and env are in **`DATABRICK_README.md`**. The AAS/GPT pipeline exists in the repo but is commented out on this branch (see `handlers/messageHandler.js`).
+- **`feat/databricks-genie`** — Best when your source of truth is **Databricks** and you use **Genie spaces**. You need Databricks workspace URL, Genie space ID, and a Databricks token; full setup, workflow, and env are in **`DATABRICK_README.md`**. On this branch only the Genie pipeline is used; AAS/GPT services and scripts have been removed.
 
 ---
 
@@ -39,10 +39,9 @@ The project is structured to enforce separation of concerns:
 - `index.js`: Application entry point initializing the Slack Bolt framework and Express HTTP server.
 - `handlers/messageHandler.js`: Coordinates the pipeline from receiving a Slack message, checking intent, running translations, and sending the final data.
 - `middleware/mdxValidator.js`: Analyzes and validates MDX queries before execution.
-- `services/gptService.js`: Integrates with OpenAI to determine user intent and generate MDX/DAX.
-- `services/aasService.js`: Manages the XMLA endpoint connection and runs queries against Azure Analysis Services.
 - `services/formatterService.js`: Parses tabular data into Slack-compatible UI blocks and handles error formatting.
-- `scripts/`: Contains utility scripts, such as periodic AAS model refresh operations.
+
+On **`main`** branch only: `gptService.js` (OpenAI/MDX/DAX), `aasService.js` (AAS/XMLA), and `scripts/` (e.g. AAS refresh). On **`feat/databricks-genie`** the app uses `genieService.js` and `databricksRefreshService.js` instead; those AAS/GPT services are not present.
 
 ## Prerequisites
 

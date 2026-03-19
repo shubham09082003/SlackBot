@@ -13,11 +13,6 @@ const {
 } = require("../services/databricksRefreshService");
 const logger = require("../utils/logger");
 
-// ── COMMENTED OUT: AAS pipeline (GPT → AAS cube). Only Genie pipeline is used now. ──
-// const { processQuestion, generateDaxQuery } = require("../services/gptService");
-// const { executeMdxQuery } = require("../services/aasService");
-// const { formatTextReplyForSlack } = require("../services/formatterService");
-
 async function handleMessage({ text, userId, channel, say, client }) {
     if (!text || text.trim().length === 0) return;
 
@@ -131,66 +126,3 @@ async function handleMessage({ text, userId, channel, say, client }) {
 }
 
 module.exports = { handleMessage };
-
-// ── COMMENTED OUT: AAS pipeline (GPT → AAS cube). Uncomment to restore. ─────────
-/*
-async function handleMessageAAS({ text, userId, channel, say, client }) {
-    if (!text || text.trim().length === 0) return;
-    let thinkingTs;
-    try {
-        const msg = await say({
-            text: "Retrieving your data…",
-            blocks: [{
-                type: "context",
-                elements: [{ type: "mrkdwn", text: "⏳ Slack → GPT → AAS (cube) → response" }],
-            }],
-        });
-        thinkingTs = msg.ts;
-    } catch (_) {}
-    const reply = async (blocks, fallbackText) => {
-        try {
-            if (thinkingTs) await client.chat.update({ channel, ts: thinkingTs, text: fallbackText, blocks });
-            else await say({ text: fallbackText, blocks });
-        } catch {
-            await say({ text: fallbackText, blocks }).catch(() => {});
-        }
-    };
-    let result;
-    try {
-        result = await processQuestion(text);
-    } catch (err) {
-        await reply(formatErrorForSlack(`GPT error: ${err.message}`, "gpt"), "GPT error.");
-        return;
-    }
-    if (result.type === "TEXT" && isRefreshQuery(text)) {
-        const refreshTime = _lastQueryTime ? new Date(_lastQueryTime).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true }) + " IST" : "No queries run yet";
-        await reply([{ type: "section", text: { type: "mrkdwn", text: `*Last AAS query time*\n\n• *When:* ${refreshTime}` } }], `Last query: ${refreshTime}`);
-        return;
-    }
-    if (result.type === "TEXT") {
-        await reply([{ type: "section", text: { type: "mrkdwn", text: formatTextReplyForSlack(result.text) } }], result.text);
-        return;
-    }
-    let queryResult;
-    try {
-        queryResult = await executeMdxQuery(result.mdx);
-        _lastQueryTime = Date.now();
-    } catch (err) {
-        await reply(formatErrorForSlack(`AAS query error: ${err.message}\n\n\`\`\`${result.mdx?.slice(0, 300)}\`\`\``, "query"), "MDX query failed.");
-        return;
-    }
-    if (queryResult.rows.length === 0) {
-        try {
-            const dax = await generateDaxQuery(text);
-            if (dax) {
-                const daxResult = await executeMdxQuery(dax);
-                if (daxResult.rows.length > 0) {
-                    await reply(formatResultsForSlack(daxResult, text, dax, { queryType: "DAX" }), "Here is the information you asked for.");
-                    return;
-                }
-            }
-        } catch (_) {}
-    }
-    await reply(formatResultsForSlack(queryResult, text, result.mdx, { queryType: "MDX" }), "Here is the information you asked for.");
-}
-*/

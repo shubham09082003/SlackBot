@@ -105,4 +105,4 @@ If `DATABRICKS_TOKEN` is not set, the app accepts **one** of these instead (same
 | Slack handling and reply formatting | `handlers/messageHandler.js`, `services/formatterService.js` |
 | Startup checks for the variables above | `index.js` |
 
-`WAREHOUSE_ID` and direct SQL execution via `services/databricksService.js` are **not** used for the Genie-based Slack replies described here.
+`WAREHOUSE_ID` and direct SQL execution are not used for Genie-based Slack replies (the former `databricksService.js` has been removed).

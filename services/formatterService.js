@@ -299,31 +299,8 @@ function formatErrorForSlack(errorMessage, type = "general") {
   ];
 }
 
-const SLACK_BLOCK_MAX = 2900;
-
-/**
- * Normalize assistant plain text for Slack mrkdwn so bullet lists look consistent.
- * - Lines starting with - or * (list style) become • bullets
- * - Escapes &, <, > so Slack doesn’t break layout
- */
-function formatTextReplyForSlack(text) {
-  if (!text || typeof text !== "string") return "—";
-  let s = text.replace(/\r\n/g, "\n").trim();
-  const lines = s.split("\n");
-  const out = lines.map((line) => {
-    const trimmed = line.trim();
-    if (/^[-*]\s+/.test(trimmed)) return "• " + trimmed.replace(/^[-*]\s+/, "");
-    if (/^\d+\.\s+/.test(trimmed)) return trimmed; // keep numbered lists
-    return line;
-  });
-  s = out.join("\n");
-  s = s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  if (s.length > SLACK_BLOCK_MAX) s = s.slice(0, SLACK_BLOCK_MAX - 1) + "…";
-  return s;
-}
 
 module.exports = {
   formatResultsForSlack,
   formatErrorForSlack,
-  formatTextReplyForSlack,
 };
