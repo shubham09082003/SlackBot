@@ -6,6 +6,7 @@
 //
 const axios = require("axios");
 const logger = require("../utils/logger");
+const { validateSql } = require("../middleware/validator");
 
 const BASE_URL = (process.env.DATABRICKS_URL || "").replace(/\/$/, "");
 const TOKEN =
@@ -142,29 +143,23 @@ async function askGenie(question) {
     }
     const attachmentId = att.attachment_id || att.id;
     if (attachmentId && (att.query || att.type === "query_result")) {
+      const queryText = att.query?.query_text;
+      if (queryText) {
+        const validation = validateSql(queryText);
+        if (!validation.valid) {
+          logger.warn("[Genie] 3. Blocked: generated SQL is not read-only", { reason: validation.reason });
+          return { text: "", error: validation.reason };
+        }
+      }
       try {
         const resultUrl = `${BASE_URL}/api/2.0/genie/spaces/${SPACE_ID}/conversations/${conversationId}/messages/${messageId}/attachments/${attachmentId}/query-result`;
         const resultRes = await axios.get(resultUrl, { headers, timeout: 15_000 });
         const raw = resultRes.data;
-        // Log raw shape so we can see why we might get 0 rows/columns (parsing vs empty from Genie)
         const stmt = raw?.statement_response;
-        const rawSummary = {
-          topLevelKeys: raw ? Object.keys(raw) : [],
-          hasStatementResponse: !!stmt,
-          hasManifest: !!(stmt?.manifest ?? raw?.manifest),
-          hasResult: !!(stmt?.result ?? raw?.result),
-          manifestSchemaColumns: (stmt?.manifest ?? raw?.manifest)?.schema?.columns?.length ?? (stmt?.manifest ?? raw?.manifest)?.columns?.length ?? null,
-          resultDataArrayLength: Array.isArray((stmt?.result ?? raw?.result)?.data_array) ? (stmt?.result ?? raw?.result).data_array.length : (Array.isArray((stmt?.result ?? raw?.result)?.data) ? (stmt?.result ?? raw?.result).data.length : null),
-          resultDataLength: Array.isArray(raw?.data_array) ? raw.data_array.length : (Array.isArray(raw?.data) ? raw.data.length : null),
-        };
-        logger.info("[Genie] 3. Query result raw shape", rawSummary);
-        if (att.query?.query_text) {
-          logger.info("[Genie] 3. SQL executed by Genie", { sqlPreview: String(att.query.query_text).slice(0, 500) });
-        }
         const parsed = parseGenieQueryResult(raw);
-        if (parsed && parsed.rows && parsed.rows.length >= 0) {
+        if (parsed && parsed.rows) {
           data = parsed;
-          logger.info("[Genie] 3. Query result fetched", { rows: parsed.rows?.length, columns: parsed.columns?.length, columnNames: parsed.columns?.slice(0, 10) });
+          logger.info("[Genie] 3. Query result fetched", { rows: parsed.rows?.length, columns: parsed.columns?.length });
           break;
         }
       } catch (err) {
@@ -176,9 +171,6 @@ async function askGenie(question) {
   if (!text && !data && !message.content) {
     text = message.content || "No text or table in response.";
   }
-  // if (!text && data) {
-  //   text = "Here are the results from Databricks SQL.";
-  // }
 
   logger.info("[Genie] 4. Done", { hasText: !!text, hasData: !!data });
   return { text, data };

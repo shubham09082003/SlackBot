@@ -1,4 +1,4 @@
-// src/handlers/messageHandler.js
+// handlers/messageHandler.js
 // ACTIVE: Single pipeline — DM / @mention → Genie API → Databricks SQL → Slack
 const { askGenie } = require("../services/genieService");
 const {
@@ -75,7 +75,7 @@ async function handleMessage({ text, userId, channel, say, client }) {
     }
 
     // ── Single pipeline: Genie API → Databricks SQL ─────────────────────────────
-    logger.info("[Pipeline] 2. Calling Genie API (Genie → Databricks SQL)", {});
+    logger.info("[Pipeline] 2. Calling Genie API (Genie → Databricks SQL)");
     let result;
     try {
         result = await askGenie(text);

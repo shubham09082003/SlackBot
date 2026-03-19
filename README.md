@@ -38,7 +38,7 @@ The project is structured to enforce separation of concerns:
 
 - `index.js`: Application entry point initializing the Slack Bolt framework and Express HTTP server.
 - `handlers/messageHandler.js`: Coordinates the pipeline from receiving a Slack message, checking intent, running translations, and sending the final data.
-- `middleware/mdxValidator.js`: Analyzes and validates MDX queries before execution.
+- `middleware/validator.js`: Analyzes and validates SQL/MDX queries before execution.
 - `services/formatterService.js`: Parses tabular data into Slack-compatible UI blocks and handles error formatting.
 
 On **`main`** branch only: `gptService.js` (OpenAI/MDX/DAX), `aasService.js` (AAS/XMLA), and `scripts/` (e.g. AAS refresh). On **`feat/databricks-genie`** the app uses `genieService.js` and `databricksRefreshService.js` instead; those AAS/GPT services are not present.

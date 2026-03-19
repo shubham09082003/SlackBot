@@ -1,4 +1,4 @@
-// Blocks any non-SELECT / destructive MDX operations.
+// Blocks destructive SQL/MDX; allows only read-only (SELECT, WITH, SHOW, DESCRIBE, etc.).
 const logger = require("../utils/logger");
 
 const BLOCKED_PATTERNS = [
@@ -10,29 +10,25 @@ const BLOCKED_PATTERNS = [
   /--/, /\/\*/,
 ];
 
-function validateMdx(query) {
+const READ_ONLY_PREFIX = /^\s*(SELECT|WITH|EVALUATE|SHOW|DESCRIBE|EXPLAIN)\b/i;
+
+function validateSql(query) {
   if (!query || typeof query !== "string" || query.trim().length < 5) {
     return { valid: false, reason: "Empty or invalid query." };
   }
-
   const trimmed = query.trim();
-
-  // Allow standard MDX/DAX read patterns
-  if (!/^\s*(SELECT|WITH|EVALUATE)\b/i.test(trimmed)) {
-    return { valid: false, reason: "Only SELECT, WITH, or EVALUATE queries are permitted." };
+  if (!READ_ONLY_PREFIX.test(trimmed)) {
+    return { valid: false, reason: "Only read-only queries (SELECT, WITH, SHOW, DESCRIBE, etc.) are permitted." };
   }
-
   for (const pattern of BLOCKED_PATTERNS) {
     if (pattern.test(trimmed)) {
       const match = trimmed.match(pattern)?.[0] || "unknown";
-      logger.warn("MDX Validator: Blocked operation", { keyword: match });
-      return { valid: false, reason: `Restricted operation detected: \`${match.toUpperCase()}\`` };
+      logger.warn("SQL Validator: Blocked operation", { keyword: match });
+      return { valid: false, reason: `Restricted operation detected: \`${String(match).toUpperCase()}\`` };
     }
   }
-
-  logger.info("MDX Validator: Query passed", { preview: trimmed.slice(0, 80) });
+  logger.info("SQL Validator: Query passed", { preview: trimmed.slice(0, 80) });
   return { valid: true };
 }
 
-// Keep old export names for compatibility
-module.exports = { validateMdx, validateSql: validateMdx };
+module.exports = { validateSql };
