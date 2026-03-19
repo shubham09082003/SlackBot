@@ -1,85 +1,75 @@
 # Slack Analytics Bot
 
-Slack Analytics Bot is a Node.js application that integrates Slack with Azure Analysis Services (AAS). It translates natural language questions into MDX (and DAX as a fallback) to run queries on AAS, returning formatted data results directly within Slack.
+Node.js Slack app that answers natural language questions using Databricks Genie. Questions are sent to the Genie API, which generates and runs SQL on Databricks SQL; results are formatted and returned in Slack.
 
-On branch **feat/databricks-genie**, the same Slack app instead routes questions through **Databricks Genie** (natural language → SQL on Databricks SQL). See **Branches** below and `DATABRICK_README.md` for that path (includes app workflow).
-
-## Branches: what each branch does
-
-| Branch | Primary data path | What it can do |
-|--------|-------------------|----------------|
-| **`main`** | **OpenAI (GPT)** → **MDX / DAX** → **Azure Analysis Services** | Answer analytics questions against your AAS tabular/cube model; DAX fallback if MDX returns no rows; optional AAS refresh tracking via scripts (`REFRESH_AAS.md`). |
-| **`feat/databricks-genie`** | **Databricks Genie API** → **SQL** → **Databricks SQL** | Answer questions against data Genie is configured for in your Databricks workspace; Genie generates and runs SQL; “refresh” / “last query” style messages use in-app session state; formatted tables in Slack. |
-
-**Summary**
-
-- **`main`** — Best when your source of truth is **Azure Analysis Services**. You need OpenAI, AAS/XMLA credentials, and the stack described in **Features** through **Model Refreshes** below.
-- **`feat/databricks-genie`** — Best when your source of truth is **Databricks** and you use **Genie spaces**. You need Databricks workspace URL, Genie space ID, and a Databricks token; full setup, workflow, and env are in **`DATABRICK_README.md`**. On this branch only the Genie pipeline is used; AAS/GPT services and scripts have been removed.
-
----
-
-**Documentation map**
-
-- Everything from **Features** through **Model Refreshes** below applies to the **`main`** branch (AAS + GPT).
-- For **`feat/databricks-genie`**, use **`DATABRICK_README.md`** (Genie + Databricks env, app workflow, and detailed flow).
-
-## Features
-
-- **Natural Language Processing:** Converts conversational questions to MDX/DAX using OpenAI.
-- **Azure Analysis Services Integration:** Executes complex MDX queries against AAS.
-- **DAX Fallback:** Automatically generates and attempts a DAX query if the initial MDX query yields no rows.
-- **Intelligent Formatting:** Responses are gracefully formatted for Slack, utilizing native Block Kit tables when supported, or boxed monospace text for compatibility.
-- **Interactive Queries:** Supports Slack mentions and Direct Messages only.
-- **Refresh Tracking:** Built-in capability to query the last known AAS refresh or sync time.
-
-## Architecture
-
-The project is structured to enforce separation of concerns:
-
-- `index.js`: Application entry point initializing the Slack Bolt framework and Express HTTP server.
-- `handlers/messageHandler.js`: Coordinates the pipeline from receiving a Slack message, checking intent, running translations, and sending the final data.
-- `middleware/validator.js`: Analyzes and validates SQL/MDX queries before execution.
-- `services/formatterService.js`: Parses tabular data into Slack-compatible UI blocks and handles error formatting.
-
-On **`main`** branch only: `gptService.js` (OpenAI/MDX/DAX), `aasService.js` (AAS/XMLA), and `scripts/` (e.g. AAS refresh). On **`feat/databricks-genie`** the app uses `genieService.js` and `databricksRefreshService.js` instead; those AAS/GPT services are not present.
+**Pipeline:** Slack (DM or @mention) to Genie API to Databricks SQL, then formatted reply in Slack. Data freshness queries (e.g. last refresh) use the Databricks Jobs API for the configured refresh job; no Genie call.
 
 ## Prerequisites
 
-- Node.js (v16 or higher recommended).
-- A registered Slack App with the appropriate Bot Token and App Token (if using Socket Mode).
-- OpenAI API Key.
-- Azure Analysis Services connection details (XMLA endpoint, database model name, cube name, tenant ID, and credentials).
+- Node.js (v16 or higher)
+- Slack app with Bot Token and Signing Secret (and App Token if using Socket Mode)
+- Databricks workspace URL, Genie space ID, and a Databricks token (PAT or API token) with access to Genie and SQL
 
-## Setup and Installation
+## Setup
 
-1. Clone the repository to your local machine.
+1. Clone the repository and install dependencies:
 
-2. Install the necessary Node.js dependencies:
    ```bash
    npm install
    ```
 
-3. Configure your environment variables. Copy the `.env.example` file to `.env` and populate it with your specific secrets:
-   - Slack Tokens (`SLACK_BOT_TOKEN`, `SLACK_APP_TOKEN`, `SLACK_SIGNING_SECRET`)
-   - OpenAI Keys (`OPENAI_API_KEY`, `OPENAI_MODEL`)
-   - AAS Configurations (`AAS_XMLA_ENDPOINT`, `AAS_DATABASE`, `AAS_CUBE_NAME`, `AAS_TENANT_ID`, `AAS_USERNAME`, `AAS_PASSWORD`, `AAS_SERVER`)
+2. Copy `.env.example` to `.env` and set the required variables (see below).
 
-4. Start the application:
-   ```bash
-   npm start
-   ```
-   For development with live reloading:
-   ```bash
-   npm run dev
-   ```
+## Required environment variables
+
+- `SLACK_BOT_TOKEN`
+- `SLACK_SIGNING_SECRET`
+- `SLACK_APP_TOKEN`
+- `DATABRICKS_URL`
+- `GENIE_SPACE_ID`
+- `DATABRICKS_TOKEN` or `DATABRICKS_PAT`
+- `DATABRICKS_REFRESH_JOB_ID`
+
+
+## Optional (where used)
+
+| Variable | Used in | Purpose |
+|----------|---------|---------|
+| `SLACK_APP_TOKEN` | `index.js` | Socket Mode; omit for HTTP. |
+| `SLACK_PORT` | `index.js` | HTTP port when not Socket Mode. Default: `3000`. |
+| `NODE_ENV` | `index.js` | `development` for debug log level. |
+| `LOG_LEVEL` | `utils/logger.js` | Log level. Default: `info`. |
+| `DATABRICKS_REFRESH_JOB_ID` | `services/databricksRefreshService.js` | Job ID for "last refresh" answers. |
+| `AAS_DATABASE` | `services/formatterService.js` | Fallback cube name in formatted replies. |
+| `SLACK_TABLE_BLOCK` | `services/formatterService.js` | Set to `0` to disable Block Kit tables. |
+
+## Run
+
+```bash
+npm start
+```
+
+With live reload:
+
+```bash
+npm run dev
+```
 
 ## Usage
 
-Once the bot is running and installed in your Slack workspace, you can interact with it in several ways:
+- **Direct message:** Send a DM to the bot with your question.
+- **Mention:** Mention the bot in a channel it is in (e.g. `@Bot show me all users`).
 
-- **Direct Messages:** Send a DM directly to the bot with your data question.
-- **Mentions:** Mention the bot in any channel it has been invited to.
+## What each file does
 
-## Model Refreshes
+| File | Role |
+|------|------|
+| `index.js` | Loads env, validates required variables, starts Slack Bolt (Socket or HTTP), wires app_mention and DM to `handleMessage`. |
+| `handlers/messageHandler.js` | Receives messages, decides freshness vs Genie, calls Genie or refresh service, formats and sends reply. |
+| `services/genieService.js` | Calls Genie start-conversation, polls until done, fetches query result; uses `DATABRICKS_URL`, token, `GENIE_SPACE_ID`. Uses `middleware/validator` to validate SQL. |
+| `middleware/validator.js` | Validates SQL/MDX: allows only read-only (SELECT, WITH, SHOW, DESCRIBE, etc.); blocks INSERT, UPDATE, DELETE, DROP, and other destructive operations. Used by `genieService.js`. |
+| `services/databricksRefreshService.js` | Detects "last refresh" / "next refresh" intent, calls Jobs API for `DATABRICKS_REFRESH_JOB_ID`, returns last run info. |
+| `services/formatterService.js` | Builds Slack blocks (text + optional table); uses `AAS_DATABASE` as fallback name, `SLACK_TABLE_BLOCK` to disable tables. |
+| `utils/logger.js` | Pino logger; level from `LOG_LEVEL`. |
 
-The repository includes a mechanism for triggering AAS model refreshes. Please consult the `REFRESH_AAS.md` document in the root directory for instructions on configuring and scheduling these operations via the `scripts/refresh-aas.js` script.
+For HTTP mode, set the Slack app Request URL to your server. For Socket Mode, set `SLACK_APP_TOKEN` and enable Socket Mode in the Slack app settings.
